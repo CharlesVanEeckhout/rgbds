@@ -427,11 +427,19 @@ public:
 		Png const &_png;
 		bool const _columnMajor;
 		uint32_t const _width, _height;
+		uint32_t const _unitWidth, _unitHeight;
 		uint32_t const _limit = _columnMajor ? _height : _width;
 
 	public:
-		TilesVisitor(Png const &png, bool columnMajor, uint32_t width, uint32_t height)
-		    : _png(png), _columnMajor(columnMajor), _width(width), _height(height) {}
+		TilesVisitor(Png const &png, bool columnMajor, uint32_t width, uint32_t height, uint32_t unitWidth, uint32_t unitHeight)
+		    : _png(png), _columnMajor(columnMajor), _width(width), _height(height), _unitWidth(unitWidth), _unitHeight(unitHeight) {
+			if (unitWidth != 0 && width % unitWidth != 0) {
+				fatal("Image/slice width (%" PRIu32 " pixels) is not a multiple of dedup unit width (%" PRIu32 " pixels)!", width, unitWidth);
+			}
+			if (unitHeight != 0 && height % unitHeight != 0) {
+				fatal("Image/slice height (%" PRIu32 " pixels) is not a multiple of dedup unit height (%" PRIu32 " pixels)!", height, unitHeight);
+			}
+		}
 
 		class Tile {
 			Png const &_png;
@@ -459,11 +467,23 @@ public:
 			}
 
 			iterator &operator++() {
+			    auto [unitMajor, unitMinor] = parent._columnMajor ? std::tie(parent._unitHeight, parent._unitWidth) : std::tie(parent._unitWidth, parent._unitHeight);
 				auto [major, minor] = parent._columnMajor ? std::tie(y, x) : std::tie(x, y);
 				major += 8;
-				if (major == limit) {
+				if (major % unitMajor == 0) {
+					// Move to next minor in unit
 					minor += 8;
-					major = 0;
+					major -= unitMajor;
+					if (minor % unitMinor == 0) {
+						// Move to next unit
+						major += unitMajor;
+						minor -= unitMinor;
+						if (major == limit) {
+							// Move to next unit list 
+							minor += unitMinor;
+							major = 0;
+						}
+					}
 				}
 				return *this;
 			}
@@ -491,6 +511,8 @@ public:
 		    options.columnMajor,
 		    options.inputSlice.width ? options.inputSlice.width * 8 : width,
 		    options.inputSlice.height ? options.inputSlice.height * 8 : height,
+			options.dedupUnit.width ? options.dedupUnit.width * 8 : (uint32_t)8,
+		    options.dedupUnit.height ? options.dedupUnit.height * 8 : (uint32_t)8,
 		};
 	}
 };

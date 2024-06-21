@@ -44,6 +44,10 @@ struct Options {
 	std::string palmap{};                              // -q, -Q
 	uint8_t nbColorsPerPal = 0;                        // -s; 0 means "auto" = 1 << bitDepth;
 	std::string tilemap{};                             // -t, -T
+	struct {
+		uint16_t width;
+		uint16_t height;
+	} dedupUnit{0, 0};                                 // -U
 	uint64_t trim = 0;                                 // -x
 
 	std::string input{}; // positional arg

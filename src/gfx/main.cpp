@@ -146,7 +146,8 @@ static void printUsage() {
 	    "Usage: rgbgfx [-r stride] [-CmOuVZ] [-v [-v ...]] [-a <attr_map> | -A]\n"
 	    "       [-b <base_ids>] [-c <colors>] [-d <depth>] [-L <slice>] [-N <nb_tiles>]\n"
 	    "       [-n <nb_pals>] [-o <out_file>] [-p <pal_file> | -P] [-q <pal_map> | -Q]\n"
-	    "       [-s <nb_colors>] [-t <tile_map> | -T] [-x <nb_tiles>] <file>\n"
+	    "       [-s <nb_colors>] [-t <tile_map> | -T] [-U <unit_size>] [-x <nb_tiles>]\n"
+	    "       <file>\n"
 	    "Useful options:\n"
 	    "    -m, --mirror-tiles    optimize out mirrored tiles\n"
 	    "    -o, --output <path>   output the tile data to this path\n"
@@ -562,6 +563,26 @@ static char *parseArgv(int argc, char *argv[]) {
 				warning("Overriding tilemap file %s", options.tilemap.c_str());
 			options.tilemap = musl_optarg;
 			break;
+		case 'U':
+			options.dedupUnit.width = parseNumber(arg, "Dedup unit width");
+			skipWhitespace(arg);
+			if (options.dedupUnit.width == 0) {
+				error("Dedup unit width may not be 0!");
+			}
+			if (*arg != ',') {
+				error("Missing comma after width in \"%s\"", musl_optarg);
+				break;
+			}
+			++arg;
+			skipWhitespace(arg);
+			options.dedupUnit.height = parseNumber(arg, "Dedup unit height");
+			if (options.dedupUnit.height == 0) {
+				error("Dedup unit height may not be 0!");
+			}
+			if (*arg != '\0') {
+				error("Unexpected extra characters after dedup unit spec in \"%s\"", musl_optarg);
+			}
+			break;
 		case 'V':
 			printf("rgbgfx %s\n", get_package_version_string());
 			exit(0);
@@ -786,12 +807,18 @@ int main(int argc, char *argv[]) {
 		}
 		fprintf(
 		    stderr,
-		    "\tInput image slice: %" PRIu32 "x%" PRIu32 " pixels starting at (%" PRIi32 ", %" PRIi32
+		    "\tInput image slice: %" PRIu32 "x%" PRIu32 " tiles starting at pixel (%" PRIi32 ", %" PRIi32
 		    ")\n",
 		    options.inputSlice.width,
 		    options.inputSlice.height,
 		    options.inputSlice.left,
 		    options.inputSlice.top
+		);
+		fprintf(
+		    stderr,
+		    "\tDedup unit: %" PRIu32 "x%" PRIu32 " tiles\n",
+		    options.dedupUnit.width,
+		    options.dedupUnit.height
 		);
 		fprintf(
 		    stderr,
